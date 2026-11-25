@@ -4,6 +4,8 @@
 
 # localpdf — Edit PDF text, swap logos, and download for free without hitting a paywall.
 
+**Live App (runs 100% in your browser, zero uploads):** https://xity4uu-a11y.github.io/localpdf/
+
 I built `localpdf` after spending ten minutes fixing two typos and a header logo in an invoice PDF on a popular web editor, clicking **Download**, and getting stopped by a subscription modal.
 
 PDF files are just structured bytes. Modern browsers already have everything required to render pages (`pdfjs-dist`) and write modified PDFs (`pdf-lib`) right inside a single tab. There is no good reason to upload a resume, studio invoice, proposal, or event handout to a remote server just to fix a line of text or drop in a signature.
