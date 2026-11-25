@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "resume-clean-typography",
+  "name": "Resume Clean Typography",
+  "version": "1.0.0",
+  "category": "typography",
+  "author": "xity4uu-a11y",
+  "license": "MIT",
+  "description": "Balanced serif and sans-serif font matching rules tailored for fixing dates, role titles, and contact lines on exported resumes.",
+  "defaults": {
+    "fontFamily": "times",
+    "bold": false,
+    "italic": false,
+    "fontSizePt": 10.5,
+    "inkHex": "#1c1c1e",
+    "backgroundHex": "#ffffff",
+    "paddingPt": 1.5
+  },
+  "fontAliases": [
+    { "pattern": "Charter", "mapsTo": "times" },
+    { "pattern": "Garamond", "mapsTo": "times" },
+    { "pattern": "Calibri", "mapsTo": "helvetica" },
+    { "pattern": "Lato", "mapsTo": "helvetica" }
+  ],
+  "presets": [
+    {
+      "id": "resume-section-heading",
+      "label": "Section Heading",
+      "kind": "add-text",
+      "text": "EXPERIENCE",
+      "fontFamily": "helvetica",
+      "bold": true,
+      "italic": false,
+      "fontSizePt": 10,
+      "inkHex": "#1d1d1f",
+      "offsetXPt": 54,
+      "offsetYPt": 620
+    },
+    {
+      "id": "resume-contact-bar",
+      "label": "Updated Contact Line",
+      "kind": "add-text",
+      "text": "hello@example.com  |  github.com/username  |  Remote",
+      "fontFamily": "helvetica",
+      "bold": false,
+      "italic": false,
+      "fontSizePt": 9.5,
+      "inkHex": "#52525b",
+      "offsetXPt": 54,
+      "offsetYPt": 706
+    },
+    {
+      "id": "resume-date-range",
+      "label": "Role Date Range",
+      "kind": "add-text",
+      "text": "2024 - Present",
+      "fontFamily": "times",
+      "bold": false,
+      "italic": true,
+      "fontSizePt": 10,
+      "inkHex": "#52525b",
+      "offsetXPt": 470,
+      "offsetYPt": 588
+    }
+  ],
+  "tags": ["resume", "cv", "typography", "career"]
+}

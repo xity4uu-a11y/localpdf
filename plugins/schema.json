@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/xity4uu-a11y/localpdf/plugins/schema.json",
+  "title": "localpdf Community Preset & Font Plugin Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "version",
+    "category",
+    "author",
+    "license",
+    "description",
+    "defaults",
+    "presets",
+    "tags"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "enum": ["1.0.0"]
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "minLength": 3,
+      "maxLength": 64
+    },
+    "name": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 80
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "category": {
+      "type": "string",
+      "enum": ["typography", "template", "stamp", "workflow"]
+    },
+    "author": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 64
+    },
+    "license": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 32
+    },
+    "description": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 280
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fontFamily", "bold", "italic", "fontSizePt", "inkHex", "backgroundHex"],
+      "properties": {
+        "fontFamily": {
+          "type": "string",
+          "enum": ["helvetica", "times", "courier"]
+        },
+        "bold": { "type": "boolean" },
+        "italic": { "type": "boolean" },
+        "fontSizePt": { "type": "number", "minimum": 6, "maximum": 96 },
+        "inkHex": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "backgroundHex": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "paddingPt": { "type": "number", "minimum": 0, "maximum": 24 }
+      }
+    },
+    "fontAliases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["pattern", "mapsTo"],
+        "properties": {
+          "pattern": { "type": "string", "minLength": 2, "maxLength": 64 },
+          "mapsTo": { "type": "string", "enum": ["helvetica", "times", "courier"] },
+          "bold": { "type": "boolean" },
+          "italic": { "type": "boolean" }
+        }
+      }
+    },
+    "presets": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "label", "kind"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+          "label": { "type": "string", "minLength": 2, "maxLength": 64 },
+          "kind": {
+            "type": "string",
+            "enum": ["add-text", "whiteout", "logo-slot", "signature-slot", "merge-plan"]
+          },
+          "text": { "type": "string", "maxLength": 400 },
+          "fontFamily": { "type": "string", "enum": ["helvetica", "times", "courier"] },
+          "bold": { "type": "boolean" },
+          "italic": { "type": "boolean" },
+          "fontSizePt": { "type": "number", "minimum": 6, "maximum": 96 },
+          "inkHex": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+          "backgroundHex": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+          "widthPt": { "type": "number", "minimum": 12, "maximum": 800 },
+          "heightPt": { "type": "number", "minimum": 12, "maximum": 800 },
+          "offsetXPt": { "type": "number", "minimum": 0, "maximum": 800 },
+          "offsetYPt": { "type": "number", "minimum": 0, "maximum": 1000 },
+          "notes": { "type": "string", "maxLength": 240 }
+        }
+      }
+    },
+    "tags": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+      }
+    }
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "invoice-header-preset",
+  "name": "Invoice Header Preset",
+  "version": "1.0.0",
+  "category": "template",
+  "author": "xity4uu-a11y",
+  "license": "MIT",
+  "description": "Clean sans-serif and monospace defaults for updating studio invoices, client billing blocks, payment terms, and header logos.",
+  "defaults": {
+    "fontFamily": "helvetica",
+    "bold": false,
+    "italic": false,
+    "fontSizePt": 10,
+    "inkHex": "#1d1d1f",
+    "backgroundHex": "#ffffff",
+    "paddingPt": 2
+  },
+  "fontAliases": [
+    { "pattern": "Inter", "mapsTo": "helvetica" },
+    { "pattern": "SFPro", "mapsTo": "helvetica" },
+    { "pattern": "IBM Plex Mono", "mapsTo": "courier" }
+  ],
+  "presets": [
+    {
+      "id": "invoice-number-label",
+      "label": "Invoice Number Block",
+      "kind": "add-text",
+      "text": "INVOICE #2026-0419\nIssued: Nov 25, 2026\nTerms: Net 14",
+      "fontFamily": "courier",
+      "bold": false,
+      "italic": false,
+      "fontSizePt": 9.5,
+      "inkHex": "#3a3a3c",
+      "offsetXPt": 400,
+      "offsetYPt": 728
+    },
+    {
+      "id": "paid-status-note",
+      "label": "Paid Status Line",
+      "kind": "add-text",
+      "text": "STATUS: PAID IN FULL",
+      "fontFamily": "helvetica",
+      "bold": true,
+      "italic": false,
+      "fontSizePt": 11,
+      "inkHex": "#1e7e34",
+      "backgroundHex": "#edf7f0",
+      "offsetXPt": 400,
+      "offsetYPt": 665
+    },
+    {
+      "id": "header-logo-cover",
+      "label": "Cover Existing Logo Area",
+      "kind": "logo-slot",
+      "widthPt": 140,
+      "heightPt": 42,
+      "backgroundHex": "#ffffff",
+      "offsetXPt": 48,
+      "offsetYPt": 712,
+      "notes": "Places a clean whiteout backing where an old studio logo sits before dropping in your new PNG or JPEG."
+    }
+  ],
+  "tags": ["invoice", "billing", "business", "logo-swap"]
+}

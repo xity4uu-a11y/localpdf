@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "pdf-merge-batch-workflow",
+  "name": "PDF Merge & Packet Workflow",
+  "version": "1.0.0",
+  "category": "workflow",
+  "author": "xity4uu-a11y",
+  "license": "MIT",
+  "description": "Packet assembly preset for combining cover letters, resumes, portfolio samples, or appendices into one clean local PDF.",
+  "defaults": {
+    "fontFamily": "helvetica",
+    "bold": false,
+    "italic": false,
+    "fontSizePt": 10,
+    "inkHex": "#27272a",
+    "backgroundHex": "#ffffff",
+    "paddingPt": 2
+  },
+  "presets": [
+    {
+      "id": "packet-separator-header",
+      "label": "Appendix Divider Header",
+      "kind": "add-text",
+      "text": "APPENDIX A — SUPPORTING DOCUMENTS",
+      "fontFamily": "helvetica",
+      "bold": true,
+      "italic": false,
+      "fontSizePt": 14,
+      "inkHex": "#18181b",
+      "offsetXPt": 54,
+      "offsetYPt": 710
+    },
+    {
+      "id": "page-footer-stamp",
+      "label": "Packet Footer Note",
+      "kind": "add-text",
+      "text": "Compiled locally with localpdf",
+      "fontFamily": "courier",
+      "bold": false,
+      "italic": false,
+      "fontSizePt": 8.5,
+      "inkHex": "#71717a",
+      "offsetXPt": 54,
+      "offsetYPt": 32
+    },
+    {
+      "id": "merge-append-action",
+      "label": "Append Local PDF",
+      "kind": "merge-plan",
+      "notes": "Opens the local file picker to append pages from another PDF into your current page organizer."
+    }
+  ],
+  "tags": ["merge", "packets", "workflow", "batch"]
+}

@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "signature-stamp-pack",
+  "name": "Signature & Approval Stamp Pack",
+  "version": "1.0.0",
+  "category": "stamp",
+  "author": "xity4uu-a11y",
+  "license": "MIT",
+  "description": "Quick signature line, dated approval blocks, and review status labels for proposals, freelancer contracts, and internal handouts.",
+  "defaults": {
+    "fontFamily": "times",
+    "bold": false,
+    "italic": true,
+    "fontSizePt": 16,
+    "inkHex": "#1a365d",
+    "backgroundHex": "#ffffff",
+    "paddingPt": 2
+  },
+  "presets": [
+    {
+      "id": "typed-signature-slot",
+      "label": "Signature Block",
+      "kind": "signature-slot",
+      "text": "Jordan Ellis",
+      "fontFamily": "times",
+      "bold": false,
+      "italic": true,
+      "fontSizePt": 18,
+      "inkHex": "#1a365d",
+      "widthPt": 170,
+      "heightPt": 48,
+      "offsetXPt": 54,
+      "offsetYPt": 118
+    },
+    {
+      "id": "reviewed-draft-stamp",
+      "label": "Reviewed Label",
+      "kind": "add-text",
+      "text": "REVIEWED — INTERNAL COPY",
+      "fontFamily": "courier",
+      "bold": true,
+      "italic": false,
+      "fontSizePt": 10,
+      "inkHex": "#7c2d12",
+      "backgroundHex": "#fef3c7",
+      "offsetXPt": 360,
+      "offsetYPt": 740
+    },
+    {
+      "id": "signed-date-line",
+      "label": "Date Signed Line",
+      "kind": "add-text",
+      "text": "Date: 2026-11-25",
+      "fontFamily": "helvetica",
+      "bold": false,
+      "italic": false,
+      "fontSizePt": 10,
+      "inkHex": "#3f3f46",
+      "offsetXPt": 260,
+      "offsetYPt": 124
+    }
+  ],
+  "tags": ["signature", "approval", "contracts", "proposals"]
+}

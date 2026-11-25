@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "certificate-layout-preset",
+  "name": "Course & Event Certificate Preset",
+  "version": "1.0.0",
+  "category": "template",
+  "author": "xity4uu-a11y",
+  "license": "MIT",
+  "description": "Centered serif display typography and clean cover boxes for personalizing workshop, hackathon, and course completion templates.",
+  "defaults": {
+    "fontFamily": "times",
+    "bold": true,
+    "italic": false,
+    "fontSizePt": 22,
+    "inkHex": "#18181b",
+    "backgroundHex": "#faf9f6",
+    "paddingPt": 3
+  },
+  "fontAliases": [
+    { "pattern": "Playfair", "mapsTo": "times" },
+    { "pattern": "Merriweather", "mapsTo": "times" },
+    { "pattern": "Baskerville", "mapsTo": "times" }
+  ],
+  "presets": [
+    {
+      "id": "participant-name-line",
+      "label": "Participant Name",
+      "kind": "add-text",
+      "text": "Alex Rivera",
+      "fontFamily": "times",
+      "bold": true,
+      "italic": false,
+      "fontSizePt": 24,
+      "inkHex": "#18181b",
+      "offsetXPt": 210,
+      "offsetYPt": 440
+    },
+    {
+      "id": "workshop-completion-note",
+      "label": "Workshop Subtitle",
+      "kind": "add-text",
+      "text": "For completing the 2026 Open Source Design Workshop",
+      "fontFamily": "times",
+      "bold": false,
+      "italic": true,
+      "fontSizePt": 12.5,
+      "inkHex": "#3f3f46",
+      "offsetXPt": 148,
+      "offsetYPt": 398
+    },
+    {
+      "id": "cream-cover-box",
+      "label": "Warm Paper Cover Patch",
+      "kind": "whiteout",
+      "widthPt": 220,
+      "heightPt": 34,
+      "backgroundHex": "#faf9f6",
+      "offsetXPt": 196,
+      "offsetYPt": 428
+    }
+  ],
+  "tags": ["workshop", "event", "template", "serif"]
+}

@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Production build output
+dist/
+build/
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Logs and test caches
+*.log
+npm-debug.log*
+coverage/
+.vitest/
+*.tsbuildinfo
