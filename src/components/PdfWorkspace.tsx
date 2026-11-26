@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { FileText, FolderOpen } from 'lucide-react';
 import { getCssFontStyle } from '../lib/fontMatcher';
-import { pdfRectToViewportRect, viewportPointToPdfPoint, viewportRectToPdfRect } from '../lib/pdfEditor';
+import {
+  computeReplacePatchRect,
+  pdfRectToViewportRect,
+  viewportPointToPdfPoint,
+  viewportRectToPdfRect
+} from '../lib/pdfEditor';
 import {
   extractPageTextLines,
   renderBlankPageToCanvas,
@@ -506,18 +511,9 @@ export function PdfWorkspace({
               const isSelected = edit.id === selectedEditId;
 
               if (edit.kind === 'replace-text') {
-                const pad = Math.max(0, edit.paddingPt);
-                const patchPdfY =
-                  Math.min(edit.patchRect.y, edit.baselineY - edit.fontSizePt * 0.28) - pad * 0.75;
-                const patchPdfH =
-                  Math.max(edit.patchRect.height, edit.fontSizePt * 1.2) + pad * 1.5;
+                const patch = computeReplacePatchRect(edit);
                 const vpPatch = pdfRectToViewportRect(
-                  {
-                    x: edit.patchRect.x - pad,
-                    y: patchPdfY,
-                    width: edit.patchRect.width + pad * 2,
-                    height: patchPdfH
-                  },
+                  patch,
                   pageDims.pageHeightPt,
                   zoom
                 );
@@ -556,7 +552,7 @@ export function PdfWorkspace({
                         value={edit.text}
                         rows={Math.max(1, edit.text.split('\n').length)}
                         style={{
-                          marginLeft: (edit.pdfX - (edit.patchRect.x - pad)) * zoom,
+                          marginLeft: (edit.pdfX - patch.x) * zoom,
                           marginTop: Math.max(0, textTopOffset),
                           fontFamily: cssFont.fontFamily,
                           fontWeight: cssFont.fontWeight,
@@ -577,7 +573,7 @@ export function PdfWorkspace({
                     ) : (
                       <div
                         style={{
-                          marginLeft: (edit.pdfX - (edit.patchRect.x - pad)) * zoom,
+                          marginLeft: (edit.pdfX - patch.x) * zoom,
                           marginTop: Math.max(0, textTopOffset),
                           fontFamily: cssFont.fontFamily,
                           fontWeight: cssFont.fontWeight,

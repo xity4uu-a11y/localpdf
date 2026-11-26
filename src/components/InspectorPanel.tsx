@@ -280,7 +280,23 @@ export function InspectorPanel({
                       {selectedEdit.coverOriginal && (
                         <div className="field-row">
                           <div className="field-group">
-                            <span className="field-label">Cover Color</span>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <span className="field-label">Cover Color</span>
+                              <button
+                                type="button"
+                                className="mini-btn"
+                                onClick={() =>
+                                  onUpdateEdit(selectedEdit.id, (prev) =>
+                                    prev.kind === 'replace-text'
+                                      ? { ...prev, backgroundHex: '#ffffff' }
+                                      : prev
+                                  )
+                                }
+                                title="Set cover fill to pure white (#ffffff)"
+                              >
+                                White
+                              </button>
+                            </div>
                             <div className="color-input-row">
                               <input
                                 type="color"

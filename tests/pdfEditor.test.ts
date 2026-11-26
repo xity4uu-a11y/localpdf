@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PDFDocument, StandardFonts } from 'pdf-lib';
 import {
   detectFontMatch,
+  estimateInkAndBackgroundFromPixels,
   getCssFontStyle,
   getStandardFontKey,
   hexToRgb01,
@@ -11,6 +12,7 @@ import {
 } from '../src/lib/fontMatcher';
 import {
   applyEditsAndExport,
+  computeReplacePatchRect,
   detectImageFormat,
   pdfRectToViewportRect,
   sanitizeForWinAnsi,
@@ -353,6 +355,129 @@ describe('pdfEditor — end-to-end non-destructive edit, page ops & merge pipeli
 
   it('throws cleanly if pagePlan is empty', async () => {
     await expect(applyEditsAndExport([], [], [])).rejects.toThrow(/zero pages/i);
+  });
+});
+
+describe('striped table color sampling & compact patch bounds', () => {
+  function createRgbaBuffer(
+    width: number,
+    height: number,
+    fill: [number, number, number]
+  ): Uint8ClampedArray {
+    const buf = new Uint8ClampedArray(width * height * 4);
+    for (let i = 0; i < width * height; i++) {
+      buf[i * 4] = fill[0];
+      buf[i * 4 + 1] = fill[1];
+      buf[i * 4 + 2] = fill[2];
+      buf[i * 4 + 3] = 255;
+    }
+    return buf;
+  }
+
+  function paintRect(
+    buf: Uint8ClampedArray,
+    bufW: number,
+    x0: number,
+    y0: number,
+    w: number,
+    h: number,
+    color: [number, number, number]
+  ) {
+    for (let y = y0; y < y0 + h; y++) {
+      for (let x = x0; x < x0 + w; x++) {
+        const idx = (y * bufW + x) * 4;
+        buf[idx] = color[0];
+        buf[idx + 1] = color[1];
+        buf[idx + 2] = color[2];
+        buf[idx + 3] = 255;
+      }
+    }
+  }
+
+  it('recovers pure white background and crisp ink on a white row touching adjacent gray zebra stripes', () => {
+    const w = 120;
+    const h = 30;
+    // Alternating table: gray stripes above (y=0..9) and below (y=20..29), white row in middle (y=10..19)
+    const buf = createRgbaBuffer(w, h, [229, 229, 229]); // #e5e5e5
+    paintRect(buf, w, 0, 10, w, 10, [255, 255, 255]); // white row
+
+    // Paint anti-aliased halos + crisp black glyph strokes inside the white row
+    for (let gx = 12; gx < 104; gx += 12) {
+      paintRect(buf, w, gx - 1, 12, 4, 6, [175, 175, 175]); // anti-aliased edge halo
+      paintRect(buf, w, gx, 12, 2, 6, [0, 0, 0]); // solid black core stroke
+    }
+
+    // Even when bounding rect touches 1px of adjacent gray stripes top & bottom, modal background stays #ffffff
+    const res = estimateInkAndBackgroundFromPixels(buf, w, h, {
+      x: 8,
+      y: 9,
+      width: 104,
+      height: 12
+    });
+    expect(res.bgHex).toBe('#ffffff');
+    expect(res.inkHex).toBe('#000000');
+  });
+
+  it('recovers exact gray stripe background on a shaded zebra row sandwiched between white rows', () => {
+    const w = 100;
+    const h = 30;
+    const buf = createRgbaBuffer(w, h, [255, 255, 255]);
+    paintRect(buf, w, 0, 10, w, 10, [229, 229, 229]); // #e5e5e5 shaded row
+    for (let gx = 10; gx < 88; gx += 10) {
+      paintRect(buf, w, gx, 12, 2, 6, [17, 17, 17]); // #111111 text
+    }
+
+    const res = estimateInkAndBackgroundFromPixels(buf, w, h, {
+      x: 6,
+      y: 10,
+      width: 88,
+      height: 10
+    });
+    expect(res.bgHex).toBe('#e5e5e5');
+    expect(res.inkHex).toBe('#111111');
+  });
+
+  it('keeps crisp dark ink on narrow numeric cells and recovers dark banner + light ink', () => {
+    // Narrow numeric cell ("0.01" ~ 18x10 px)
+    const bufNarrow = createRgbaBuffer(26, 12, [255, 255, 255]);
+    paintRect(bufNarrow, 26, 6, 3, 2, 6, [18, 18, 18]);
+    paintRect(bufNarrow, 26, 12, 3, 2, 6, [18, 18, 18]);
+    paintRect(bufNarrow, 26, 17, 3, 2, 6, [18, 18, 18]);
+    const narrow = estimateInkAndBackgroundFromPixels(bufNarrow, 26, 12, {
+      x: 4,
+      y: 1,
+      width: 18,
+      height: 10
+    });
+    expect(narrow.bgHex).toBe('#ffffff');
+    expect(narrow.inkHex).toBe('#121212');
+
+    // Dark header banner (#18181b) with white text (#ffffff)
+    const bufDark = createRgbaBuffer(80, 20, [24, 24, 27]);
+    for (let gx = 10; gx < 68; gx += 10) {
+      paintRect(bufDark, 80, gx, 5, 2, 10, [255, 255, 255]);
+    }
+    const dark = estimateInkAndBackgroundFromPixels(bufDark, 80, 20, {
+      x: 6,
+      y: 2,
+      width: 68,
+      height: 16
+    });
+    expect(dark.bgHex).toBe('#18181b');
+    expect(dark.inkHex).toBe('#ffffff');
+  });
+
+  it('keeps vertical cover patch bounds tight for compact table rows', () => {
+    const patch = computeReplacePatchRect({
+      patchRect: { x: 120, y: 400, width: 42, height: 9.2 },
+      baselineY: 401.76,
+      fontSizePt: 8,
+      paddingPt: 1
+    });
+    expect(patch.x).toBe(119);
+    expect(patch.width).toBe(44);
+    // Vertical height stays well inside a compact 11pt table row
+    expect(patch.height).toBeLessThanOrEqual(10.5);
   });
 });
 

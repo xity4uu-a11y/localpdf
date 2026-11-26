@@ -287,10 +287,190 @@ function medianChannel(values: number[]): number {
   return sorted[Math.floor(sorted.length / 2)];
 }
 
+export interface PixelRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 /**
- * Samples the rendered PDF canvas around and inside a text bounding box to
- * estimate the true background color (white, tinted header band, dark banner)
- * and the primary ink color of the text glyphs.
+ * Pure pixel-buffer estimator for text background and ink color.
+ * Uses a quantized 3D RGB histogram over the text interior plus immediate
+ * same-row horizontal flanks (never expanding vertically into adjacent table
+ * stripes) so zebra-striped tables always recover the exact row fill and
+ * crisp glyph core ink.
+ */
+export function estimateInkAndBackgroundFromPixels(
+  data: Uint8ClampedArray,
+  bufferWidth: number,
+  bufferHeight: number,
+  innerRect: PixelRect,
+  horizontalFlankPx = 2
+): { inkHex: string; bgHex: string } {
+  if (bufferWidth <= 0 || bufferHeight <= 0 || data.length < bufferWidth * bufferHeight * 4) {
+    return { inkHex: '#1c1c1e', bgHex: '#ffffff' };
+  }
+
+  const ix0 = Math.max(0, Math.min(bufferWidth - 1, Math.floor(innerRect.x)));
+  const iy0 = Math.max(0, Math.min(bufferHeight - 1, Math.floor(innerRect.y)));
+  const ix1 = Math.max(ix0 + 1, Math.min(bufferWidth, Math.ceil(innerRect.x + innerRect.width)));
+  const iy1 = Math.max(iy0 + 1, Math.min(bufferHeight, Math.ceil(innerRect.y + innerRect.height)));
+  const iw = ix1 - ix0;
+  const ih = iy1 - iy0;
+
+  if (iw < 2 || ih < 2) {
+    return { inkHex: '#1c1c1e', bgHex: '#ffffff' };
+  }
+
+  // Build 3D RGB histogram (bin width = 4) over interior + same-row horizontal flanks.
+  // Background occupies ~65-90% of a text box, while strokes occupy ~10-30%.
+  const BIN = 4;
+  const buckets = new Map<number, { count: number; sumR: number; sumG: number; sumB: number }>();
+
+  const addBgSample = (px: number, py: number, weight = 1) => {
+    const idx = (py * bufferWidth + px) * 4;
+    const r = data[idx];
+    const g = data[idx + 1];
+    const b = data[idx + 2];
+    const key = ((r >> 2) << 12) | ((g >> 2) << 6) | (b >> 2);
+    const entry = buckets.get(key);
+    if (entry) {
+      entry.count += weight;
+      entry.sumR += r * weight;
+      entry.sumG += g * weight;
+      entry.sumB += b * weight;
+    } else {
+      buckets.set(key, {
+        count: weight,
+        sumR: r * weight,
+        sumG: g * weight,
+        sumB: b * weight
+      });
+    }
+  };
+
+  const bgStepX = iw > 160 ? Math.floor(iw / 120) : 1;
+  const bgStepY = ih > 64 ? Math.floor(ih / 48) : 1;
+
+  for (let y = iy0; y < iy1; y += bgStepY) {
+    for (let x = ix0; x < ix1; x += bgStepX) {
+      addBgSample(x, y, 1);
+    }
+  }
+
+  // Same-row horizontal flanks (strictly within the vertical center band of this row)
+  const flank = Math.max(0, Math.round(horizontalFlankPx));
+  if (flank > 0) {
+    const midY0 = iy0 + Math.floor(ih * 0.2);
+    const midY1 = Math.max(midY0 + 1, iy1 - Math.floor(ih * 0.2));
+    const leftX0 = Math.max(0, ix0 - flank);
+    const rightX1 = Math.min(bufferWidth, ix1 + flank);
+
+    for (let y = midY0; y < midY1; y += 1) {
+      for (let x = leftX0; x < ix0; x += 1) {
+        addBgSample(x, y, 2);
+      }
+      for (let x = ix1; x < rightX1; x += 1) {
+        addBgSample(x, y, 2);
+      }
+    }
+  }
+
+  let winningBucket: { count: number; sumR: number; sumG: number; sumB: number } | null = null;
+  for (const entry of buckets.values()) {
+    if (!winningBucket || entry.count > winningBucket.count) {
+      winningBucket = entry;
+    }
+  }
+
+  let bgR = 255;
+  let bgG = 255;
+  let bgB = 255;
+  if (winningBucket && winningBucket.count > 0) {
+    const seedR = winningBucket.sumR / winningBucket.count;
+    const seedG = winningBucket.sumG / winningBucket.count;
+    const seedB = winningBucket.sumB / winningBucket.count;
+
+    // Refine background using nearby bins within +/- BIN*2 to eliminate quantization bias
+    let totalW = 0;
+    let accR = 0;
+    let accG = 0;
+    let accB = 0;
+    for (const entry of buckets.values()) {
+      const er = entry.sumR / entry.count;
+      const eg = entry.sumG / entry.count;
+      const eb = entry.sumB / entry.count;
+      if (
+        Math.abs(er - seedR) <= BIN * 2 &&
+        Math.abs(eg - seedG) <= BIN * 2 &&
+        Math.abs(eb - seedB) <= BIN * 2
+      ) {
+        totalW += entry.count;
+        accR += entry.sumR;
+        accG += entry.sumG;
+        accB += entry.sumB;
+      }
+    }
+    bgR = Math.round(accR / Math.max(1, totalW));
+    bgG = Math.round(accG / Math.max(1, totalW));
+    bgB = Math.round(accB / Math.max(1, totalW));
+  }
+
+  // Snap imperceptibly off-white page backgrounds cleanly to pure white
+  if (bgR >= 251 && bgG >= 251 && bgB >= 251) {
+    bgR = 255;
+    bgG = 255;
+    bgB = 255;
+  }
+
+  const bgHex = rgb255ToHex(bgR, bgG, bgB);
+
+  // Sample interior glyph pixels contrasting against the true row background
+  const candidates: Array<{ dist: number; r: number; g: number; b: number }> = [];
+  const inkStepX = iw > 180 ? Math.floor(iw / 120) : 1;
+  const inkStepY = ih > 64 ? Math.floor(ih / 48) : 1;
+
+  for (let y = iy0; y < iy1; y += inkStepY) {
+    for (let x = ix0; x < ix1; x += inkStepX) {
+      const idx = (y * bufferWidth + x) * 4;
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+      const dr = r - bgR;
+      const dg = g - bgG;
+      const db = b - bgB;
+      const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+      if (dist >= 36) {
+        candidates.push({ dist, r, g, b });
+      }
+    }
+  }
+
+  if (candidates.length === 0) {
+    const bgLuma = 0.299 * bgR + 0.587 * bgG + 0.114 * bgB;
+    return { inkHex: bgLuma > 135 ? '#1c1c1e' : '#ffffff', bgHex };
+  }
+
+  // Keep top 20% highest-contrast pixels (solid glyph stroke cores, rejecting anti-aliased fringes)
+  candidates.sort((a, b) => b.dist - a.dist);
+  const coreCount = Math.max(1, Math.ceil(candidates.length * 0.2));
+  const core = candidates.slice(0, coreCount);
+
+  const inkR = medianChannel(core.map((c) => c.r));
+  const inkG = medianChannel(core.map((c) => c.g));
+  const inkB = medianChannel(core.map((c) => c.b));
+
+  return {
+    inkHex: rgb255ToHex(inkR, inkG, inkB),
+    bgHex
+  };
+}
+
+/**
+ * Samples the rendered PDF canvas inside a text bounding box (plus same-row
+ * horizontal flanks) to estimate the exact row background color and glyph ink
+ * color without bleeding into adjacent table stripes.
  */
 export function estimateInkAndBackgroundFromCanvas(
   ctx: CanvasRenderingContext2D | null,
@@ -303,16 +483,22 @@ export function estimateInkAndBackgroundFromCanvas(
 
   const canvasW = ctx.canvas.width;
   const canvasH = ctx.canvas.height;
-  const pad = Math.max(2, Math.round(3 * dpr));
+  const flank = Math.max(1, Math.round(2 * dpr));
 
-  const sx = Math.max(0, Math.floor(rect.x * dpr) - pad);
-  const sy = Math.max(0, Math.floor(rect.y * dpr) - pad);
-  const ex = Math.min(canvasW, Math.ceil((rect.x + rect.width) * dpr) + pad);
-  const ey = Math.min(canvasH, Math.ceil((rect.y + rect.height) * dpr) + pad);
+  const rawX0 = Math.floor(rect.x * dpr);
+  const rawY0 = Math.floor(rect.y * dpr);
+  const rawX1 = Math.ceil((rect.x + rect.width) * dpr);
+  const rawY1 = Math.ceil((rect.y + rect.height) * dpr);
+
+  // Expand horizontally by flank (same row), NEVER vertically into adjacent table rows
+  const sx = Math.max(0, rawX0 - flank);
+  const sy = Math.max(0, rawY0);
+  const ex = Math.min(canvasW, rawX1 + flank);
+  const ey = Math.min(canvasH, rawY1);
 
   const w = ex - sx;
   const h = ey - sy;
-  if (w < 4 || h < 4) {
+  if (w < 2 || h < 2) {
     return { inkHex: '#1c1c1e', bgHex: '#ffffff' };
   }
 
@@ -323,80 +509,16 @@ export function estimateInkAndBackgroundFromCanvas(
     return { inkHex: '#1c1c1e', bgHex: '#ffffff' };
   }
 
-  const bgR: number[] = [];
-  const bgG: number[] = [];
-  const bgB: number[] = [];
-
-  // Sample outer perimeter ring for background color
-  for (let x = 0; x < w; x += 2) {
-    const topIdx = x * 4;
-    bgR.push(data[topIdx]);
-    bgG.push(data[topIdx + 1]);
-    bgB.push(data[topIdx + 2]);
-
-    const botIdx = ((h - 1) * w + x) * 4;
-    bgR.push(data[botIdx]);
-    bgG.push(data[botIdx + 1]);
-    bgB.push(data[botIdx + 2]);
-  }
-  for (let y = 1; y < h - 1; y += 2) {
-    const leftIdx = y * w * 4;
-    bgR.push(data[leftIdx]);
-    bgG.push(data[leftIdx + 1]);
-    bgB.push(data[leftIdx + 2]);
-
-    const rightIdx = (y * w + (w - 1)) * 4;
-    bgR.push(data[rightIdx]);
-    bgG.push(data[rightIdx + 1]);
-    bgB.push(data[rightIdx + 2]);
-  }
-
-  const medBgR = medianChannel(bgR);
-  const medBgG = medianChannel(bgG);
-  const medBgB = medianChannel(bgB);
-  const bgHex = rgb255ToHex(medBgR, medBgG, medBgB);
-
-  // Sample interior pixels contrasting with background to recover glyph ink
-  const candidates: Array<{ dist: number; r: number; g: number; b: number }> = [];
-  const innerStartX = Math.min(pad, Math.floor(w / 4));
-  const innerEndX = Math.max(innerStartX + 1, w - innerStartX);
-  const innerStartY = Math.min(pad, Math.floor(h / 4));
-  const innerEndY = Math.max(innerStartY + 1, h - innerStartY);
-  const stepX = Math.max(1, Math.floor((innerEndX - innerStartX) / 60));
-  const stepY = Math.max(1, Math.floor((innerEndY - innerStartY) / 24));
-
-  for (let y = innerStartY; y < innerEndY; y += stepY) {
-    for (let x = innerStartX; x < innerEndX; x += stepX) {
-      const idx = (y * w + x) * 4;
-      const r = data[idx];
-      const g = data[idx + 1];
-      const b = data[idx + 2];
-      const dr = r - medBgR;
-      const dg = g - medBgG;
-      const db = b - medBgB;
-      const dist = Math.sqrt(dr * dr + dg * dg + db * db);
-      if (dist >= 38) {
-        candidates.push({ dist, r, g, b });
-      }
-    }
-  }
-
-  if (candidates.length === 0) {
-    const bgLuma = 0.299 * medBgR + 0.587 * medBgG + 0.114 * medBgB;
-    return { inkHex: bgLuma > 135 ? '#1c1c1e' : '#ffffff', bgHex };
-  }
-
-  // Keep top 40% highest-contrast pixels (core glyph strokes, ignoring anti-aliased edge halos)
-  candidates.sort((a, b) => b.dist - a.dist);
-  const coreCount = Math.max(1, Math.ceil(candidates.length * 0.4));
-  const core = candidates.slice(0, coreCount);
-
-  const inkR = medianChannel(core.map((c) => c.r));
-  const inkG = medianChannel(core.map((c) => c.g));
-  const inkB = medianChannel(core.map((c) => c.b));
-
-  return {
-    inkHex: rgb255ToHex(inkR, inkG, inkB),
-    bgHex
-  };
+  return estimateInkAndBackgroundFromPixels(
+    data,
+    w,
+    h,
+    {
+      x: Math.max(0, rawX0 - sx),
+      y: 0,
+      width: Math.max(1, Math.min(w, rawX1 - sx) - Math.max(0, rawX0 - sx)),
+      height: h
+    },
+    flank
+  );
 }

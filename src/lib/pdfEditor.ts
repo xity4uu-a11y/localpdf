@@ -150,6 +150,27 @@ export function detectImageFormat(bytes: Uint8Array, fallbackMime: 'image/png' |
   return fallbackMime === 'image/png' ? 'png' : 'jpeg';
 }
 
+export function computeReplacePatchRect(edit: {
+  patchRect: PdfRect;
+  baselineY: number;
+  fontSizePt: number;
+  paddingPt: number;
+}): PdfRect {
+  const pad = Math.max(0, edit.paddingPt);
+  // Keep vertical padding compact so cover rectangles never bleed into adjacent table rows
+  const vPad = Math.min(pad * 0.35, edit.fontSizePt * 0.12);
+  const bottom = Math.min(edit.patchRect.y, edit.baselineY - edit.fontSizePt * 0.24) - vPad;
+  const top =
+    Math.max(edit.patchRect.y + edit.patchRect.height, edit.baselineY + edit.fontSizePt * 0.92) +
+    vPad;
+  return {
+    x: edit.patchRect.x - pad,
+    y: bottom,
+    width: edit.patchRect.width + pad * 2,
+    height: Math.max(edit.fontSizePt * 1.12, top - bottom)
+  };
+}
+
 function toPdfRgb(hex: string) {
   const { r, g, b } = hexToRgb01(hex);
   return rgb(r, g, b);
@@ -230,18 +251,14 @@ export async function applyEditsAndExport(
 
     for (const edit of pageEdits) {
       if (edit.kind === 'replace-text') {
-        const pad = Math.max(0, edit.paddingPt);
         if (edit.coverOriginal) {
-          const patchX = edit.patchRect.x - pad;
-          const patchY = Math.min(edit.patchRect.y, edit.baselineY - edit.fontSizePt * 0.28) - pad * 0.75;
-          const patchW = edit.patchRect.width + pad * 2;
-          const patchH = Math.max(edit.patchRect.height, edit.fontSizePt * 1.2) + pad * 1.5;
+          const patch = computeReplacePatchRect(edit);
 
           page.drawRectangle({
-            x: patchX,
-            y: patchY,
-            width: patchW,
-            height: patchH,
+            x: patch.x,
+            y: patch.y,
+            width: patch.width,
+            height: patch.height,
             color: toPdfRgb(edit.backgroundHex),
             borderWidth: 0
           });

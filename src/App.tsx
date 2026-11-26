@@ -61,7 +61,7 @@ export default function App() {
     fontSizePt: 11,
     inkHex: '#1d1d1f',
     backgroundHex: '#ffffff',
-    paddingPt: 2
+    paddingPt: 1
   });
 
   const openFileInputRef = useRef<HTMLInputElement | null>(null);

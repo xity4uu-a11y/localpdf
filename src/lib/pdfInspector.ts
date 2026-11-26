@@ -184,7 +184,8 @@ export async function extractPageTextLines(
   const page = await pdfDoc.getPage(pageNumber1Based);
   const baseRotation = page.rotate || 0;
   const totalRotation = (baseRotation + (options.rotationDelta ?? 0)) % 360;
-  const unscaledViewport = page.getViewport({ scale: 1, rotation: totalRotation });
+  const scale = options.scale ?? 1;
+  const scaledViewport = page.getViewport({ scale, rotation: totalRotation });
   const textContent = await page.getTextContent();
   const styles = (textContent.styles || {}) as Record<string, PdfJsStyleLike>;
   const customAliases = options.customAliases ?? [];
@@ -235,10 +236,10 @@ export async function extractPageTextLines(
     return r2.baselineY - r1.baselineY;
   });
 
-  // Merge adjacent runs sharing baseline, font family/weight/italic, and close horizontal spacing
+  // Merge adjacent runs sharing baseline, font family/weight/italic, and normal word spacing
+  // (keep gap threshold conservative so distinct table columns remain separate editable cells)
   const mergedLines: ExtractedTextLine[] = [];
   const ctx = options.canvas ? options.canvas.getContext('2d', { willReadFrequently: true }) : null;
-  const scale = options.scale ?? 1;
   const dpr = options.dpr ?? 1;
 
   for (const run of runs) {
@@ -248,8 +249,8 @@ export async function extractPageTextLines(
       Math.abs(prev.baselineY - run.baselineY) <= Math.min(prev.fontSizePt, run.fontSizePt) * 0.35 &&
       Math.abs(prev.fontSizePt - run.fontSizePt) <= 0.8 &&
       prev.fontMatch.fontKey === run.fontMatch.fontKey &&
-      run.pdfX - (prev.pdfX + prev.pdfWidth) >= -run.fontSizePt * 0.5 &&
-      run.pdfX - (prev.pdfX + prev.pdfWidth) <= run.fontSizePt * 1.5;
+      run.pdfX - (prev.pdfX + prev.pdfWidth) >= -run.fontSizePt * 0.4 &&
+      run.pdfX - (prev.pdfX + prev.pdfWidth) <= run.fontSizePt * 0.65;
 
     if (canMerge) {
       const gap = run.pdfX - (prev.pdfX + prev.pdfWidth);
@@ -279,16 +280,23 @@ export async function extractPageTextLines(
     }
   }
 
-  // Enrich each merged text line with sampled ink and background colors from the canvas
+  // Enrich each merged text line with sampled ink and background colors using exact PDF.js viewport coords
   if (ctx) {
     for (const line of mergedLines) {
-      const vpX = line.pdfX * scale;
-      const vpY = (unscaledViewport.height - (line.pdfY + line.pdfHeight)) * scale;
-      const vpW = line.pdfWidth * scale;
-      const vpH = line.pdfHeight * scale;
+      const [vx1, vy1, vx2, vy2] = scaledViewport.convertToViewportRectangle([
+        line.pdfX,
+        line.pdfY,
+        line.pdfX + line.pdfWidth,
+        line.pdfY + line.pdfHeight
+      ]);
       const sampled = estimateInkAndBackgroundFromCanvas(
         ctx,
-        { x: vpX, y: vpY, width: vpW, height: vpH },
+        {
+          x: Math.min(vx1, vx2),
+          y: Math.min(vy1, vy2),
+          width: Math.abs(vx2 - vx1),
+          height: Math.abs(vy2 - vy1)
+        },
         dpr
       );
       line.inkHex = sampled.inkHex;
